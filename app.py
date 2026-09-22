@@ -40,62 +40,51 @@ def main():
     )
     amount = st.number_input("Amount", min_value=0.0, value=100.0, step=1.0)
     st.caption("Enter a non-negative amount. A zero amount converts to zero.")
-    show_conversion_section("Latest", source, target, amount)
-    show_conversion_section("Historical", source, target, amount)
-
-
-def show_conversion_section(section, source, target, amount):
-    """Render one independent result area using the shared conversion workflow."""
-    st.subheader(f"{section} exchange rate")
+    mode = st.radio("Exchange rate", ["Latest exchange rate", "Historical exchange rate"])
     historical_date = None
-    if section == "Historical":
+    if mode == "Historical exchange rate":
         historical_date = st.date_input(
             "Historical date", value=date.today(),
             min_value=date(1999, 1, 4), max_value=date.today(),
         )
         st.caption("If no rate was published that day, an earlier working day's rate may be returned.")
 
-    result_key = f"{section.lower()}_result"
-    if st.button(f"Get {section.lower()} conversion rate"):
-        # Clear only this section when a new request fails.
-        st.session_state[result_key] = None
-        try:
-            if source == target:
-                raise ValueError("Please choose two different currencies.")
-            if section == "Historical":
-                if historical_date is None:
-                    raise ValueError("Please select a valid historical date.")
-                if historical_date > date.today():
-                    raise ValueError("Historical date must not be in the future.")
-            validate_amount(amount)
-            with st.spinner("Retrieving exchange rate..."):
-                if section == "Historical":
-                    quote = get_historical_rate(source, target, historical_date.isoformat())
-                else:
-                    quote = get_latest_rate(source, target)
-                converted = convert_amount(amount, quote["rate"])
-                inverse = inverse_rate(quote["rate"])
-            st.session_state[result_key] = {
-                "text": format_conversion_result(
-                    quote["date"], source, target, quote["rate"], amount, converted, inverse
-                ),
-                "date": quote["date"],
-                "requested_date": historical_date.isoformat() if historical_date else None,
-            }
-        except ValueError as error:
-            st.error(str(error))
-        except RuntimeError as error:
-            st.error(f"Unable to retrieve an exchange rate. {error}")
+    if not st.button("Convert"):
+        return
+    if source == target:
+        st.error("Please choose two different currencies.")
+        return
+    if mode == "Historical exchange rate" and historical_date is None:
+        st.error("Please select a valid historical date.")
+        return
+    if historical_date is not None and historical_date > date.today():
+        st.error("Historical date must not be in the future.")
+        return
 
-    result = st.session_state.get(result_key)
-    if result:
-        st.write(f"Exchange rate date: {result['date']}")
-        if result["requested_date"] and result["date"] != result["requested_date"]:
-            st.info(f"Requested date: {result['requested_date']}. The available rate date is shown above.")
-    st.text_area(
-        f"{section} conversion result", value=result["text"] if result else "",
-        height=140, disabled=True,
+    try:
+        validate_amount(amount)
+        with st.spinner("Retrieving exchange rate..."):
+            if mode == "Historical exchange rate":
+                quote = get_historical_rate(source, target, historical_date.isoformat())
+            else:
+                quote = get_latest_rate(source, target)
+            converted = convert_amount(amount, quote["rate"])
+            inverse = inverse_rate(quote["rate"])
+    except ValueError as error:
+        st.error(str(error))
+        return
+    except RuntimeError as error:
+        st.error(f"Unable to retrieve an exchange rate. {error}")
+        return
+
+    st.subheader("Conversion result")
+    st.write(f"Exchange rate date: {quote['date']}")
+    if historical_date is not None and quote["date"] != historical_date.isoformat():
+        st.info(f"Requested date: {historical_date.isoformat()}. The available rate date is shown above.")
+    result_text = format_conversion_result(
+        quote["date"], source, target, quote["rate"], amount, converted, inverse
     )
+    st.text_area("Conversion result details", value=result_text, height=140, disabled=True)
 
 
 if __name__ == "__main__":
