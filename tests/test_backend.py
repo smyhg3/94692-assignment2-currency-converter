@@ -7,11 +7,22 @@ from unittest.mock import patch
 import requests
 
 from api import get_json
-from currency import convert_amount, inverse_rate, validate_amount
+from currency import convert_amount, format_conversion_result, inverse_rate, validate_amount
 from frankfurter import get_currencies, get_historical_rate, get_latest_rate
 
 
 class CalculationTests(unittest.TestCase):
+    def test_format_conversion_result_uses_supplied_values(self):
+        # Deliberately distinct supplied results catch accidental recalculation.
+        result = format_conversion_result(
+            "2024-05-15", "AUD", "USD", 0.66421, 1000, 1234.567, 1.23456789
+        )
+        self.assertEqual(
+            result,
+            "The conversion rate on 2024-05-15 from AUD to USD was 0.66421. "
+            "So 1,000.00 in AUD correspond to 1,234.57 in USD. The inverse rate was 1.23457.",
+        )
+
     def test_conversion_and_inverse(self):
         for amount in (0, 100, 1000):
             self.assertAlmostEqual(convert_amount(amount, 0.65), amount * 0.65)

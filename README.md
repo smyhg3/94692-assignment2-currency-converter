@@ -10,9 +10,13 @@ currency conversion calculations, with latest and historical rate options.
   timeout and clear `RuntimeError` exceptions for HTTP/network and JSON errors.
 - `frankfurter.py`: currency list, latest rate and historical rate endpoints.
   Both rate functions return `date`, `base`, `target` and `rate` in a dictionary.
-- `currency.py`: `convert_amount(amount, exchange_rate)` and
+- `currency.py`: currency calculations and final result text formatting.
+  `convert_amount(amount, exchange_rate)` and
   `inverse_rate(exchange_rate)`, with finite-number and range validation.
   `validate_amount(amount)` also checks inputs before the UI requests a rate.
+  `format_conversion_result(rate_date, from_currency, to_currency, rate, amount,
+  converted_amount, inverse_rate)` returns the assignment's English result text
+  using the supplied values, without recalculating or making API requests.
 - `app.py`: Streamlit inputs, API currency-list caching, conversion results
   and user-facing error messages. Backend modules remain independent of Streamlit.
 
@@ -71,7 +75,8 @@ print(get_historical_rate("AUD", "USD", "2024-05-15"))
 ```
 
 Amounts must be non-negative; rates must be positive. Calculations are not
-rounded, leaving display formatting to the Streamlit interface. Invalid inputs
+rounded; `format_conversion_result(...)` formats the final text for display
+in Streamlit's read-only text area. Invalid inputs
 raise `ValueError`; failed requests or invalid API responses raise `RuntimeError`.
 Currency codes are normalized; unsupported codes are rejected by the API.
 Select two different currencies. Historical dates must use `YYYY-MM-DD` and

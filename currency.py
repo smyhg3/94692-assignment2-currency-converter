@@ -1,4 +1,4 @@
-"""Currency calculations, independent of HTTP and the user interface."""
+"""Currency calculations and result formatting, independent of HTTP and Streamlit."""
 
 import math
 
@@ -43,3 +43,14 @@ def inverse_rate(exchange_rate):
     result = 1 / exchange_rate
     _validate_rate(result)
     return result
+
+
+def format_conversion_result(
+    rate_date, from_currency, to_currency, rate, amount, converted_amount, inverse_rate
+):
+    """Format supplied values using the assignment wording without recalculating."""
+    return (
+        f"The conversion rate on {rate_date} from {from_currency} to {to_currency} "
+        f"was {rate:.6g}. So {amount:,.2f} in {from_currency} correspond to "
+        f"{converted_amount:,.2f} in {to_currency}. The inverse rate was {inverse_rate:.6g}."
+    )

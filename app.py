@@ -4,7 +4,7 @@ from datetime import date
 
 import streamlit as st
 
-from currency import convert_amount, inverse_rate, validate_amount
+from currency import convert_amount, format_conversion_result, inverse_rate, validate_amount
 from frankfurter import get_currencies, get_historical_rate, get_latest_rate
 
 
@@ -81,10 +81,8 @@ def main():
     st.write(f"Exchange rate date: {quote['date']}")
     if historical_date is not None and quote["date"] != historical_date.isoformat():
         st.info(f"Requested date: {historical_date.isoformat()}. The available rate date is shown above.")
-    result_text = (
-        f"The conversion rate on {quote['date']} from {source} to {target} "
-        f"was {quote['rate']:.6g}. So {amount:,.2f} in {source} correspond to "
-        f"{converted:,.2f} in {target}. The inverse rate was {inverse:.6g}."
+    result_text = format_conversion_result(
+        quote["date"], source, target, quote["rate"], amount, converted, inverse
     )
     st.text_area("Conversion result details", value=result_text, height=140, disabled=True)
 
