@@ -25,7 +25,7 @@ def get_currencies():
     if not isinstance(data, dict) or not data:
         raise RuntimeError("Frankfurter returned an invalid currency list.")
     for code, name in data.items():
-        if not isinstance(name, str) or not name:
+        if not isinstance(name, str) or not name.strip():
             raise RuntimeError("Frankfurter returned an invalid currency name.")
         try:
             if _currency_code(code) != code:
@@ -48,7 +48,10 @@ def _get_rate(endpoint, from_currency, to_currency):
     try:
         rate = data["rates"][target]
         rate_date = data["date"]
-        date.fromisoformat(rate_date)
+        published_date = date.fromisoformat(rate_date)
+        requested_date = date.today() if endpoint == "latest" else date.fromisoformat(endpoint)
+        if published_date.isoformat() != rate_date or published_date > requested_date:
+            raise ValueError("Unexpected publication date.")
         if data["base"] != base:
             raise ValueError("Unexpected base currency.")
         if isinstance(rate, bool) or not isinstance(rate, (int, float)):
@@ -56,7 +59,7 @@ def _get_rate(endpoint, from_currency, to_currency):
         if not math.isfinite(rate) or rate <= 0:
             raise ValueError("Rate must be positive and finite.")
     except (KeyError, TypeError, ValueError, OverflowError) as error:
-        raise RuntimeError("Frankfurter returned invalid rate data.") from error
+        raise RuntimeError("Frankfurter returned missing or invalid exchange-rate data. Please try another date or try again later.") from error
     return {"date": rate_date, "base": base, "target": target, "rate": rate}
 
 

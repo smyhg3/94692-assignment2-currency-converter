@@ -21,12 +21,17 @@ def _validate_rate(exchange_rate):
         raise ValueError("Exchange rate must be greater than zero.")
 
 
-def convert_amount(amount, exchange_rate):
-    """Convert a non-negative amount without rounding the result."""
+def validate_amount(amount):
+    """Reject negative or non-finite amounts; zero is allowed."""
     _validate_number(amount, "Amount")
-    _validate_rate(exchange_rate)
     if amount < 0:
         raise ValueError("Amount must not be negative.")
+
+
+def convert_amount(amount, exchange_rate):
+    """Convert a non-negative amount without rounding the result."""
+    validate_amount(amount)
+    _validate_rate(exchange_rate)
     result = amount * exchange_rate
     _validate_number(result, "Converted amount")
     return result

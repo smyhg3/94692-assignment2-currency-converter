@@ -1,4 +1,4 @@
-# Currency Converter — Stage 2
+# Currency Converter — Stage 3
 
 Streamlit web app for UTS 94692 Data Science Practice Assignment 2.
 Retrieves exchange rates from the open-source Frankfurter API and performs
@@ -12,6 +12,7 @@ currency conversion calculations, with latest and historical rate options.
   Both rate functions return `date`, `base`, `target` and `rate` in a dictionary.
 - `currency.py`: `convert_amount(amount, exchange_rate)` and
   `inverse_rate(exchange_rate)`, with finite-number and range validation.
+  `validate_amount(amount)` also checks inputs before the UI requests a rate.
 - `app.py`: Streamlit inputs, API currency-list caching, conversion results
   and user-facing error messages. Backend modules remain independent of Streamlit.
 
@@ -36,6 +37,22 @@ Results show the actual rate date, exchange rate, converted amount and inverse
 rate. Amounts display two decimal places; rates display six significant digits.
 Identical currencies, invalid inputs, unavailable data and API/network failures
 produce error messages. An internet connection is required.
+Zero is allowed and converts to zero. Negative or non-finite amounts are rejected.
+Connection failures, timeouts, HTTP errors and unreadable responses have separate
+messages. Historical results may use an earlier working day, but a returned date
+later than the requested date is rejected.
+
+## Tests
+
+Run the offline regression tests from this directory after installing dependencies:
+
+```sh
+python -m unittest discover -s tests -v
+```
+
+These tests use simulated HTTP responses and Streamlit's AppTest to cover input
+validation, calculations, historical date fallback, response validation and
+network errors. They do not require internet access or verify live API availability.
 
 ## Backend example
 

@@ -4,7 +4,7 @@ from datetime import date
 
 import streamlit as st
 
-from currency import convert_amount, inverse_rate
+from currency import convert_amount, inverse_rate, validate_amount
 from frankfurter import get_currencies, get_historical_rate, get_latest_rate
 
 
@@ -21,8 +21,8 @@ def main():
 
     try:
         currencies = load_currencies()
-    except RuntimeError:
-        st.error("Unable to load currencies from Frankfurter. Please try again later.")
+    except RuntimeError as error:
+        st.error(f"Unable to load currencies. {error}")
         if st.button("Retry loading currencies"):
             st.rerun()
         return
@@ -39,6 +39,7 @@ def main():
         format_func=lambda code: f"{code} — {currencies[code]}",
     )
     amount = st.number_input("Amount", min_value=0.0, value=100.0, step=1.0)
+    st.caption("Enter a non-negative amount. A zero amount converts to zero.")
     mode = st.radio("Exchange rate", ["Latest exchange rate", "Historical exchange rate"])
     historical_date = None
     if mode == "Historical exchange rate":
@@ -56,8 +57,12 @@ def main():
     if mode == "Historical exchange rate" and historical_date is None:
         st.error("Please select a valid historical date.")
         return
+    if historical_date is not None and historical_date > date.today():
+        st.error("Historical date must not be in the future.")
+        return
 
     try:
+        validate_amount(amount)
         with st.spinner("Retrieving exchange rate..."):
             if mode == "Historical exchange rate":
                 quote = get_historical_rate(source, target, historical_date.isoformat())
@@ -68,12 +73,8 @@ def main():
     except ValueError as error:
         st.error(str(error))
         return
-    except RuntimeError:
-        st.error(
-            "Unable to retrieve a valid exchange rate. The API may be unavailable, "
-            "or data may be missing for the selected currencies or date. "
-            "Please try again or choose another date."
-        )
+    except RuntimeError as error:
+        st.error(f"Unable to retrieve an exchange rate. {error}")
         return
 
     st.subheader("Conversion result")
