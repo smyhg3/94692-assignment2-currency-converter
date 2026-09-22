@@ -39,28 +39,34 @@ class AppTests(unittest.TestCase):
     def convert(self):
         self.app.button[0].click().run()
         self.assertFalse(self.app.exception)
-        return "\n".join(item.value for item in self.app.markdown)
+        if self.app.text_area:
+            self.assertTrue(self.app.text_area[0].disabled)
+            return self.app.text_area[0].value
+        return ""
 
     def test_latest_and_large_amount_both_directions(self):
         self.assertEqual(len(self.app.selectbox[0].options), 3)
         self.app.number_input[0].set_value(1000.0).run()
         output = self.convert()
-        self.assertIn("1,000.00 AUD = 650.00 USD", output)
-        self.assertIn("1 USD = 1.53846 AUD", output)
+        self.assertEqual(
+            output,
+            "The conversion rate on 2024-05-17 from AUD to USD was 0.65. "
+            "So 1,000.00 in AUD correspond to 650.00 in USD. The inverse rate was 1.53846.",
+        )
         self.app.selectbox[0].set_value("USD").run()
         self.app.selectbox[1].set_value("AUD").run()
-        self.assertIn("1,000.00 USD = 1,540.00 AUD", self.convert())
+        self.assertIn("1,000.00 in USD correspond to 1,540.00 in AUD", self.convert())
 
     def test_historical_actual_date(self):
         self.app.radio[0].set_value("Historical exchange rate").run()
         self.app.date_input[0].set_value(date(2024, 5, 19)).run()
         output = self.convert()
-        self.assertIn("Exchange rate date: 2024-05-17", output)
+        self.assertIn("The conversion rate on 2024-05-17 from AUD to USD was 0.65.", output)
         self.assertIn("2024-05-19", self.app.info[0].value)
 
     def test_zero_amount(self):
         self.app.number_input[0].set_value(0.0).run()
-        self.assertIn("0.00 AUD = 0.00 USD", self.convert())
+        self.assertIn("0.00 in AUD correspond to 0.00 in USD", self.convert())
 
     def test_same_currency_skips_request(self):
         self.app.selectbox[1].set_value("AUD").run()
@@ -96,7 +102,7 @@ class AppTests(unittest.TestCase):
             self.assertIn(message, self.app.error[0].value)
             self.assertNotIn("private diagnostic detail", self.app.error[0].value)
         self.get.side_effect = response_for
-        self.assertIn("Converted amount:", self.convert())
+        self.assertIn("The conversion rate on", self.convert())
         self.assertFalse(self.app.error)
 
     def test_missing_rate_and_invalid_json(self):
