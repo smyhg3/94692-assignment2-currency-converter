@@ -36,12 +36,13 @@ class AppTests(unittest.TestCase):
         self.app = AppTest.from_file(str(APP_PATH), default_timeout=20).run()
         self.assertFalse(self.app.exception)
 
-    def convert(self):
-        self.app.button[0].click().run()
+    def convert(self, historical=False):
+        index = 1 if historical else 0
+        self.app.button[index].click().run()
         self.assertFalse(self.app.exception)
         if self.app.text_area:
-            self.assertTrue(self.app.text_area[0].disabled)
-            return self.app.text_area[0].value
+            self.assertTrue(self.app.text_area[index].disabled)
+            return self.app.text_area[index].value
         return ""
 
     def test_latest_and_large_amount_both_directions(self):
@@ -58,11 +59,30 @@ class AppTests(unittest.TestCase):
         self.assertIn("1,000.00 in USD correspond to 1,540.00 in AUD", self.convert())
 
     def test_historical_actual_date(self):
-        self.app.radio[0].set_value("Historical exchange rate").run()
         self.app.date_input[0].set_value(date(2024, 5, 19)).run()
-        output = self.convert()
+        output = self.convert(historical=True)
         self.assertIn("The conversion rate on 2024-05-17 from AUD to USD was 0.65.", output)
         self.assertIn("2024-05-19", self.app.info[0].value)
+
+    def test_result_boxes_are_independent(self):
+        self.assertEqual(len(self.app.text_area), 2)
+        self.assertTrue(all(box.disabled for box in self.app.text_area))
+        self.assertTrue(all(box.value == "" for box in self.app.text_area))
+        latest = self.convert()
+        self.assertEqual(self.app.text_area[1].value, "")
+        self.app.date_input[0].set_value(date(2024, 5, 19)).run()
+        self.app.number_input[0].set_value(1000.0).run()
+        historical = self.convert(historical=True)
+        self.assertIn("1,000.00 in AUD", historical)
+        self.assertEqual(self.app.text_area[0].value, latest)
+        self.app.number_input[0].set_value(50.0).run()
+        self.assertIn("50.00 in AUD", self.convert())
+        self.assertEqual(self.app.text_area[1].value, historical)
+        self.get.side_effect = requests.Timeout("offline")
+        self.convert(historical=True)
+        self.assertEqual(self.app.text_area[1].value, "")
+        self.assertIn("50.00 in AUD", self.app.text_area[0].value)
+        self.assertIn("timed out", self.app.error[0].value)
 
     def test_zero_amount(self):
         self.app.number_input[0].set_value(0.0).run()
@@ -85,11 +105,10 @@ class AppTests(unittest.TestCase):
                 self.assertEqual(self.get.call_count, count)
 
     def test_missing_and_future_dates_skip_request(self):
-        self.app.radio[0].set_value("Historical exchange rate").run()
         for value in (None, date.today() + timedelta(days=1)):
             with self.subTest(value=value), patch("streamlit.date_input", return_value=value):
                 count = self.get.call_count
-                self.convert()
+                self.convert(historical=True)
                 self.assertTrue(self.app.error)
                 self.assertEqual(self.get.call_count, count)
 

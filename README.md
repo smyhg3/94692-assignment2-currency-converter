@@ -34,9 +34,12 @@ From this directory, start the web app:
 python -m streamlit run app.py
 ```
 
-Choose source and target currencies, enter a non-negative amount, select latest
-or historical exchange rate, and click **Convert**. Historical mode displays a
-date input. Currency choices come from Frankfurter and are cached for one hour.
+Choose source and target currencies and enter a non-negative amount. Click
+**Get latest conversion rate** for the latest quote, or select a historical date
+and click **Get historical conversion rate**. Each section has its own read-only
+result box. Results remain visible until that section is requested again; their
+text records the inputs used. A failed request clears only its own result.
+Currency choices come from Frankfurter and are cached for one hour.
 Results show the actual rate date, exchange rate, converted amount and inverse
 rate. Amounts display two decimal places; rates display six significant digits.
 Identical currencies, invalid inputs, unavailable data and API/network failures
