@@ -5,6 +5,7 @@ import math
 
 def _validate_number(value, name):
     """Require a finite Python int or float, excluding booleans."""
+    # bool subclasses int, but True/False are not valid amounts or rates.
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ValueError(f"{name} must be a finite number.")
     try:
@@ -16,6 +17,7 @@ def _validate_number(value, name):
 
 
 def _validate_rate(exchange_rate):
+    """Require a positive, finite numeric rate."""
     _validate_number(exchange_rate, "Exchange rate")
     if exchange_rate <= 0:
         raise ValueError("Exchange rate must be greater than zero.")

@@ -80,6 +80,7 @@ def get_historical_rate(from_currency, to_currency, historical_date):
         raise ValueError("Historical date must use YYYY-MM-DD format.")
     if parsed_date > date.today():
         raise ValueError("Historical date must not be in the future.")
+    # Frankfurter may use the nearest earlier published working-day rate.
     return _get_rate(historical_date, from_currency, to_currency)
 
 
@@ -89,23 +90,24 @@ def get_three_year_rates(from_currency, to_currency):
     target = _currency_code(to_currency)
     if base == target:
         raise ValueError("Choose two different currencies.")
-    end = date.today()
+    end_date = date.today()
+    # Calendar years preserve the anniversary date despite leap years.
     try:
-        start = end.replace(year=end.year - 3)
+        start_date = end_date.replace(year=end_date.year - 3)
     except ValueError:
         # February 29 becomes February 28 in a non-leap year.
-        start = end.replace(year=end.year - 3, day=28)
+        start_date = end_date.replace(year=end_date.year - 3, day=28)
     data = get_json(
-        f"{BASE_URL}/{start.isoformat()}..{end.isoformat()}",
+        f"{BASE_URL}/{start_date.isoformat()}..{end_date.isoformat()}",
         params={"base": base, "symbols": target},
     )
     try:
         if data["base"] != base or not isinstance(data["rates"], dict):
             raise ValueError("Unexpected time-series response.")
         records = []
-        for day, rates in data["rates"].items():
-            published = date.fromisoformat(day)
-            if published.isoformat() != day or published > end:
+        for date_text, rates in data["rates"].items():
+            published_date = date.fromisoformat(date_text)
+            if published_date.isoformat() != date_text or published_date > end_date:
                 raise ValueError("Invalid publication date.")
             rate = rates[target]
             if isinstance(rate, bool) or not isinstance(rate, (int, float)):
@@ -113,8 +115,8 @@ def get_three_year_rates(from_currency, to_currency):
             if not math.isfinite(rate) or rate <= 0:
                 raise ValueError("Rate must be positive and finite.")
             # The API can include a previous working day before the start.
-            if published >= start:
-                records.append({"Date": published, "Rate": rate})
+            if published_date >= start_date:
+                records.append({"Date": published_date, "Rate": rate})
         if not records:
             raise ValueError("No rates in the requested period.")
     except (KeyError, TypeError, ValueError, OverflowError) as error:

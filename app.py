@@ -47,14 +47,16 @@ def main():
 def show_conversion_section(section, source, target, amount):
     """Render one independent result area using the shared conversion workflow."""
     st.subheader(f"{section} exchange rate")
+    is_historical = section == "Historical"
     historical_date = None
-    if section == "Historical":
+    if is_historical:
         historical_date = st.date_input(
             "Historical date", value=date.today(),
             min_value=date(1999, 1, 4), max_value=date.today(),
         )
         st.caption("If no rate was published that day, an earlier working day's rate may be returned.")
 
+    # Separate keys preserve both results across Streamlit reruns.
     result_key = f"{section.lower()}_result"
     if st.button(f"Get {section.lower()} conversion rate"):
         # Clear only this section when a new request fails.
@@ -62,20 +64,20 @@ def show_conversion_section(section, source, target, amount):
         try:
             if source == target:
                 raise ValueError("Please choose two different currencies.")
-            if section == "Historical":
+            if is_historical:
                 if historical_date is None:
                     raise ValueError("Please select a valid historical date.")
                 if historical_date > date.today():
                     raise ValueError("Historical date must not be in the future.")
             validate_amount(amount)
             with st.spinner("Retrieving exchange rate..."):
-                if section == "Historical":
+                if is_historical:
                     quote = get_historical_rate(source, target, historical_date.isoformat())
                 else:
                     quote = get_latest_rate(source, target)
                 converted = convert_amount(amount, quote["rate"])
                 inverse = inverse_rate(quote["rate"])
-            st.session_state[result_key] = {
+            result = {
                 "text": format_conversion_result(
                     quote["date"], source, target, quote["rate"], amount, converted, inverse
                 ),
@@ -83,12 +85,14 @@ def show_conversion_section(section, source, target, amount):
                 "requested_date": historical_date.isoformat() if historical_date else None,
                 "pair": (source, target),
             }
+            st.session_state[result_key] = result
             if section == "Latest":
+                # A trend failure must not discard a successful conversion.
                 try:
                     with st.spinner("Retrieving three-year rate trend..."):
-                        st.session_state[result_key]["trend"] = get_three_year_rates(source, target)
+                        result["trend"] = get_three_year_rates(source, target)
                 except (ValueError, RuntimeError):
-                    st.session_state[result_key]["trend"] = []
+                    result["trend"] = []
         except ValueError as error:
             st.error(str(error))
         except RuntimeError as error:
