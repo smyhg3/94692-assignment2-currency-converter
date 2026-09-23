@@ -8,7 +8,7 @@ import requests
 
 from api import get_json
 from currency import convert_amount, format_conversion_result, inverse_rate, validate_amount
-from frankfurter import get_currencies, get_historical_rate, get_latest_rate
+from frankfurter import get_currencies, get_historical_rate, get_latest_rate, get_three_year_rates
 
 
 class CalculationTests(unittest.TestCase):
@@ -80,6 +80,40 @@ class HttpTests(unittest.TestCase):
 
 
 class FrankfurterTests(unittest.TestCase):
+    @patch("frankfurter.get_json")
+    def test_three_year_series_range_sorting_and_leap_day(self, get):
+        with patch("frankfurter.date", wraps=date) as clock:
+            clock.today.return_value = date(2024, 2, 29)
+            get.return_value = {
+                "base": "AUD", "rates": {
+                    "2024-02-29": {"USD": 0.66}, "2021-02-26": {"USD": 0.64},
+                    "2021-03-01": {"USD": 0.65},
+                },
+            }
+            rows = get_three_year_rates("aud", "usd")
+        self.assertTrue(get.call_args.args[0].endswith("2021-02-28..2024-02-29"))
+        self.assertEqual(get.call_args.kwargs["params"], {"base": "AUD", "symbols": "USD"})
+        self.assertEqual(rows, [{"Date": date(2021, 3, 1), "Rate": 0.65},
+                                {"Date": date(2024, 2, 29), "Rate": 0.66}])
+
+    @patch("frankfurter.get_json")
+    def test_three_year_series_invalid_data(self, get):
+        today = date.today().isoformat()
+        payloads = [None, {}, {"base": "AUD", "rates": {}},
+                    {"base": "EUR", "rates": {today: {"USD": 0.65}}},
+                    {"base": "AUD", "rates": {"bad-date": {"USD": 0.65}}},
+                    {"base": "AUD", "rates": {today: {}}}]
+        payloads += [{"base": "AUD", "rates": {today: {"USD": rate}}}
+                     for rate in (0, -1, True, None, "0.65", float("nan"), float("inf"))]
+        for payload in payloads:
+            get.return_value = payload
+            with self.subTest(payload=payload), self.assertRaises(RuntimeError):
+                get_three_year_rates("AUD", "USD")
+        get.reset_mock()
+        with self.assertRaises(ValueError):
+            get_three_year_rates("AUD", "AUD")
+        get.assert_not_called()
+
     @patch("frankfurter.get_json")
     def test_currency_list(self, get):
         get.return_value = {"AUD": "Australian Dollar", "USD": "US Dollar"}

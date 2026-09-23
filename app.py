@@ -5,7 +5,7 @@ from datetime import date
 import streamlit as st
 
 from currency import convert_amount, format_conversion_result, inverse_rate, validate_amount
-from frankfurter import get_currencies, get_historical_rate, get_latest_rate
+from frankfurter import get_currencies, get_historical_rate, get_latest_rate, get_three_year_rates
 
 
 @st.cache_data(ttl=3600)
@@ -47,14 +47,16 @@ def main():
 def show_conversion_section(section, source, target, amount):
     """Render one independent result area using the shared conversion workflow."""
     st.subheader(f"{section} exchange rate")
+    is_historical = section == "Historical"
     historical_date = None
-    if section == "Historical":
+    if is_historical:
         historical_date = st.date_input(
             "Historical date", value=date.today(),
             min_value=date(1999, 1, 4), max_value=date.today(),
         )
         st.caption("If no rate was published that day, an earlier working day's rate may be returned.")
 
+    # Separate keys preserve both results across Streamlit reruns.
     result_key = f"{section.lower()}_result"
     if st.button(f"Get {section.lower()} conversion rate"):
         # Clear only this section when a new request fails.
@@ -62,26 +64,35 @@ def show_conversion_section(section, source, target, amount):
         try:
             if source == target:
                 raise ValueError("Please choose two different currencies.")
-            if section == "Historical":
+            if is_historical:
                 if historical_date is None:
                     raise ValueError("Please select a valid historical date.")
                 if historical_date > date.today():
                     raise ValueError("Historical date must not be in the future.")
             validate_amount(amount)
             with st.spinner("Retrieving exchange rate..."):
-                if section == "Historical":
+                if is_historical:
                     quote = get_historical_rate(source, target, historical_date.isoformat())
                 else:
                     quote = get_latest_rate(source, target)
                 converted = convert_amount(amount, quote["rate"])
                 inverse = inverse_rate(quote["rate"])
-            st.session_state[result_key] = {
+            result = {
                 "text": format_conversion_result(
                     quote["date"], source, target, quote["rate"], amount, converted, inverse
                 ),
                 "date": quote["date"],
                 "requested_date": historical_date.isoformat() if historical_date else None,
+                "pair": (source, target),
             }
+            st.session_state[result_key] = result
+            if section == "Latest":
+                # A trend failure must not discard a successful conversion.
+                try:
+                    with st.spinner("Retrieving three-year rate trend..."):
+                        result["trend"] = get_three_year_rates(source, target)
+                except (ValueError, RuntimeError):
+                    result["trend"] = []
         except ValueError as error:
             st.error(str(error))
         except RuntimeError as error:
@@ -96,6 +107,19 @@ def show_conversion_section(section, source, target, amount):
         f"{section} conversion result", value=result["text"] if result else "",
         height=140, disabled=True,
     )
+    if section == "Latest" and result:
+        st.subheader("Rate Trend Over the Last 3 years")
+        if result.get("pair") != (source, target):
+            st.info("Click Get latest conversion rate to show the trend for the selected currencies.")
+        elif not result.get("trend"):
+            st.warning("Three-year trend data is unavailable. Please try Get latest conversion rate again later.")
+        else:
+            st.caption(f"{source} → {target}: target currency units per 1 {source}")
+            st.line_chart(
+                {"Date": [row["Date"] for row in result["trend"]],
+                 "Rate": [row["Rate"] for row in result["trend"]]},
+                x="Date", y="Rate", x_label="Date", y_label="Rate",
+            )
 
 
 if __name__ == "__main__":
