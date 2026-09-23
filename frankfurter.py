@@ -81,3 +81,42 @@ def get_historical_rate(from_currency, to_currency, historical_date):
     if parsed_date > date.today():
         raise ValueError("Historical date must not be in the future.")
     return _get_rate(historical_date, from_currency, to_currency)
+
+
+def get_three_year_rates(from_currency, to_currency):
+    """Return sorted Date/Rate records for the last three calendar years."""
+    base = _currency_code(from_currency)
+    target = _currency_code(to_currency)
+    if base == target:
+        raise ValueError("Choose two different currencies.")
+    end = date.today()
+    try:
+        start = end.replace(year=end.year - 3)
+    except ValueError:
+        # February 29 becomes February 28 in a non-leap year.
+        start = end.replace(year=end.year - 3, day=28)
+    data = get_json(
+        f"{BASE_URL}/{start.isoformat()}..{end.isoformat()}",
+        params={"base": base, "symbols": target},
+    )
+    try:
+        if data["base"] != base or not isinstance(data["rates"], dict):
+            raise ValueError("Unexpected time-series response.")
+        records = []
+        for day, rates in data["rates"].items():
+            published = date.fromisoformat(day)
+            if published.isoformat() != day or published > end:
+                raise ValueError("Invalid publication date.")
+            rate = rates[target]
+            if isinstance(rate, bool) or not isinstance(rate, (int, float)):
+                raise ValueError("Rate is not numeric.")
+            if not math.isfinite(rate) or rate <= 0:
+                raise ValueError("Rate must be positive and finite.")
+            # The API can include a previous working day before the start.
+            if published >= start:
+                records.append({"Date": published, "Rate": rate})
+        if not records:
+            raise ValueError("No rates in the requested period.")
+    except (KeyError, TypeError, ValueError, OverflowError) as error:
+        raise RuntimeError("Three-year trend data is unavailable or invalid. Please try again later.") from error
+    return sorted(records, key=lambda record: record["Date"])

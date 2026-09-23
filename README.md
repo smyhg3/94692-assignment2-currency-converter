@@ -17,6 +17,9 @@ currency conversion calculations, with latest and historical rate options.
 
 - `frankfurter.py`: currency list, latest rate and historical rate endpoints.
   Both rate functions return `date`, `base`, `target` and `rate` in a dictionary.
+  `get_three_year_rates(from_currency, to_currency)` retrieves and validates
+  time-series rates from three calendar years ago through today, returning
+  sorted `Date`/`Rate` records. February 29 maps to February 28 when necessary.
 
 - `currency.py`: currency calculations and final result text formatting.
   `convert_amount(amount, exchange_rate)` and
@@ -51,6 +54,14 @@ date and click **Get historical conversion rate**.
 Each section has its own read-only result box. Results remain visible until that
 section is requested again; their text records the inputs used. A failed request
 clears only its own result.
+
+After a successful latest conversion, **Rate Trend Over the Last 3 years**
+appears directly below its result box. The line chart plots Date against Rate
+for the selected currency pair, using published rates within the last three
+calendar years; non-working days are not fabricated. The range is fixed.
+Changing currencies hides the old chart until you click the latest button again.
+Unavailable trend data shows a warning without removing the conversion result.
+The historical section does not display a trend chart.
 
 Currency choices come from Frankfurter and are cached for one hour.
 

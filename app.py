@@ -5,7 +5,7 @@ from datetime import date
 import streamlit as st
 
 from currency import convert_amount, format_conversion_result, inverse_rate, validate_amount
-from frankfurter import get_currencies, get_historical_rate, get_latest_rate
+from frankfurter import get_currencies, get_historical_rate, get_latest_rate, get_three_year_rates
 
 
 @st.cache_data(ttl=3600)
@@ -81,7 +81,14 @@ def show_conversion_section(section, source, target, amount):
                 ),
                 "date": quote["date"],
                 "requested_date": historical_date.isoformat() if historical_date else None,
+                "pair": (source, target),
             }
+            if section == "Latest":
+                try:
+                    with st.spinner("Retrieving three-year rate trend..."):
+                        st.session_state[result_key]["trend"] = get_three_year_rates(source, target)
+                except (ValueError, RuntimeError):
+                    st.session_state[result_key]["trend"] = []
         except ValueError as error:
             st.error(str(error))
         except RuntimeError as error:
@@ -96,6 +103,19 @@ def show_conversion_section(section, source, target, amount):
         f"{section} conversion result", value=result["text"] if result else "",
         height=140, disabled=True,
     )
+    if section == "Latest" and result:
+        st.subheader("Rate Trend Over the Last 3 years")
+        if result.get("pair") != (source, target):
+            st.info("Click Get latest conversion rate to show the trend for the selected currencies.")
+        elif not result.get("trend"):
+            st.warning("Three-year trend data is unavailable. Please try Get latest conversion rate again later.")
+        else:
+            st.caption(f"{source} → {target}: target currency units per 1 {source}")
+            st.line_chart(
+                {"Date": [row["Date"] for row in result["trend"]],
+                 "Rate": [row["Rate"] for row in result["trend"]]},
+                x="Date", y="Rate", x_label="Date", y_label="Rate",
+            )
 
 
 if __name__ == "__main__":

@@ -18,6 +18,11 @@ def response_for(url, params=None, timeout=None):
     response = Mock()
     if url.endswith("/currencies"):
         response.json.return_value = {"AUD": "Australian Dollar", "USD": "US Dollar", "EUR": "Euro"}
+    elif ".." in url:
+        response.json.return_value = {
+            "base": params["base"],
+            "rates": {date.today().isoformat(): {params["symbols"]: 0.65}},
+        }
     else:
         response.json.return_value = {
             "base": params["base"], "date": "2024-05-17",
@@ -87,6 +92,49 @@ class AppTests(unittest.TestCase):
     def test_zero_amount(self):
         self.app.number_input[0].set_value(0.0).run()
         self.assertIn("0.00 in AUD correspond to 0.00 in USD", self.convert())
+
+    def test_trend_position_and_currency_change(self):
+        self.convert()
+        charts = self.app.get("vega_lite_chart")
+        self.assertEqual(len(charts), 1)
+        elements = list(self.app.main)
+        latest_box = next(i for i, node in enumerate(elements)
+                          if node.type == "text_area" and node.label == "Latest conversion result")
+        heading = next(i for i, node in enumerate(elements)
+                       if node.type == "subheader" and node.value == "Rate Trend Over the Last 3 years")
+        chart = next(i for i, node in enumerate(elements) if node.type == "vega_lite_chart")
+        historical = next(i for i, node in enumerate(elements)
+                          if node.type == "subheader" and node.value == "Historical exchange rate")
+        self.assertLess(latest_box, heading)
+        self.assertLess(heading, chart)
+        self.assertLess(chart, historical)
+        self.app.selectbox[1].set_value("EUR").run()
+        self.assertEqual(len(self.app.get("vega_lite_chart")), 0)
+        self.convert()
+        self.assertEqual(len(self.app.get("vega_lite_chart")), 1)
+        self.assertEqual(self.get.call_args.kwargs["params"], {"base": "AUD", "symbols": "EUR"})
+
+    def test_trend_failure_preserves_conversion(self):
+        for unavailable in ("empty", "timeout"):
+            def fail_trend(url, params=None, timeout=None):
+                if ".." in url:
+                    if unavailable == "timeout":
+                        raise requests.Timeout("offline")
+                    response = Mock()
+                    response.json.return_value = {"base": params["base"], "rates": {}}
+                    return response
+                return response_for(url, params, timeout)
+            self.get.side_effect = fail_trend
+            self.assertIn("The conversion rate on", self.convert())
+            self.assertFalse(self.app.error)
+            self.assertIn("trend data is unavailable", self.app.warning[0].value)
+            self.assertEqual(len(self.app.get("vega_lite_chart")), 0)
+
+    def test_historical_does_not_request_trend(self):
+        self.app.date_input[0].set_value(date(2024, 5, 19)).run()
+        self.convert(historical=True)
+        self.assertEqual(len(self.app.get("vega_lite_chart")), 0)
+        self.assertFalse(any(".." in call.args[0] for call in self.get.call_args_list))
 
     def test_same_currency_skips_request(self):
         self.app.selectbox[1].set_value("AUD").run()
