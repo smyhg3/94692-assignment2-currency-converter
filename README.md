@@ -10,6 +10,51 @@ Streamlit web app for UTS 94692 Data Science Practice Assignment 2.
 Retrieves exchange rates from the open-source Frankfurter API and performs
 currency conversion calculations, with latest and historical rate options.
 
+## Development Iterations
+
+This project was developed incrementally across four stages, with each stage focusing on a specific part of the assignment.
+
+### Stage 1 — Backend foundation
+
+The first stage focused on separating the core backend responsibilities before building the user interface.
+
+- Added generic HTTP request handling in `api.py`.
+- Implemented Frankfurter API integration in `frankfurter.py`.
+- Added currency conversion and inverse-rate calculations in `currency.py`.
+- Established the initial project structure and Git/GitHub workflow.
+
+### Stage 2 — Streamlit interface and core conversion workflow
+
+The second stage connected the backend to a working Streamlit application.
+
+- Added amount, source currency and target currency inputs.
+- Implemented latest exchange-rate conversion.
+- Implemented historical exchange-rate lookup by date.
+- Added separate read-only result boxes for latest and historical conversions.
+- Matched the required assignment result wording through `format_conversion_result(...)`.
+
+### Stage 3 — Validation, reliability and testing
+
+The third stage focused on making the application more robust rather than adding major new features.
+
+- Added input validation for amounts, currency selections and dates.
+- Improved API/network error handling and user-facing messages.
+- Added protection against invalid, missing or non-finite rate data.
+- Added offline regression tests for backend logic and Streamlit behaviour.
+- Verified historical-date fallback behaviour and independent latest/historical results.
+
+### Stage 4 — Assignment alignment, visualisation and final refinement
+
+The final stage focused on aligning the implementation more closely with the assignment example and improving code quality.
+
+- Reorganised responsibilities so result formatting is handled by `currency.py`.
+- Added the required three-year exchange-rate trend chart below the latest conversion result.
+- Refined the Streamlit layout while keeping the assignment structure clear.
+- Simplified code and improved comments/docstrings without changing observable behaviour.
+- Cleaned submission files, updated documentation and prepared the final release.
+
+This staged workflow was tracked through Git commits on the `development` branch and then integrated into `main` through pull requests.
+
 ## Architecture
 
 - `api.py`: generic JSON GET requests using `requests`, with a 10-second
@@ -132,8 +177,11 @@ than an invented rate.
 
 This project was developed using Git and GitHub for version control.
 
-Development work was carried out incrementally using commits and a development
-branch before integration into the main branch.
+Development was carried out incrementally on the `development` branch, with
+separate commits used to record the main stages of implementation. Stable
+changes were integrated into `main` through pull requests, allowing the project
+history to show the progression from backend development to UI integration,
+testing, visualisation and final refinement.
 
 ## API
 

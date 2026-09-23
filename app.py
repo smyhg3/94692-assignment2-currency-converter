@@ -42,6 +42,8 @@ def main():
     st.caption("Enter a non-negative amount. A zero amount converts to zero.")
     show_conversion_section("Latest", source, target, amount)
     show_conversion_section("Historical", source, target, amount)
+    st.markdown("Project repository: [GitHub](https://github.com/smyhg3/94692-assignment2-currency-converter)")
+    st.caption("If you find this project useful, feel free to leave a ⭐ — it’s free! 😋")
 
 
 def show_conversion_section(section, source, target, amount):
