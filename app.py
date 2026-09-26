@@ -44,7 +44,6 @@ def main():
     show_conversion_section("Historical", source, target, amount)
     st.markdown("Project repository: [GitHub](https://github.com/smyhg3/94692-assignment2-currency-converter)")
     st.caption("This repository is currently private.")
-    st.caption("If you find this project useful, feel free to leave a ⭐ — it’s free! 😋")
 
 
 def show_conversion_section(section, source, target, amount):
