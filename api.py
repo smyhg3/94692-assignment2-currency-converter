@@ -3,6 +3,12 @@
 import requests
 
 
+def get_url(url):
+    """Return the HTTP status and response text for the template interface."""
+    response = requests.get(url, timeout=10)
+    return response.status_code, response.text
+
+
 def get_json(url, params=None):
     """GET a URL with optional query parameters; return JSON or raise RuntimeError."""
     try:

@@ -3,6 +3,24 @@
 import math
 
 
+def round_rate(rate):
+    """Round a rate to four decimal places."""
+    return round(rate, 4)
+
+
+def reverse_rate(rate):
+    """Return zero for zero, otherwise the reciprocal rounded to four decimals."""
+    return round_rate(1 / rate) if rate != 0 else 0
+
+
+def format_output(date, from_currency, to_currency, rate, amount):
+    """Calculate and format a conversion using the assignment wording."""
+    return format_conversion_result(
+        date, from_currency, to_currency, rate, amount,
+        convert_amount(amount, rate), inverse_rate(rate),
+    )
+
+
 def _validate_number(value, name):
     """Require a finite Python int or float, excluding booleans."""
     # bool subclasses int, but True/False are not valid amounts or rates.

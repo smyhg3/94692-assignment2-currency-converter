@@ -2,7 +2,8 @@
 
 **Student Name:** Hongyi Guo  
 **Student ID:** 26295358  
-**Course:** 94692
+**Course:** 94692 
+**Assignment:** Assignment 2 — Building Currency Converter in Python
 
 **Table of Contents**
 
@@ -61,9 +62,10 @@ conversion result. The historical section has no chart.
 
 ## Function Reference
 
-The table lists all 16 named functions, including private helpers. `None` means
-no value is returned on successful completion. Invalid inputs raise
-`ValueError`; request failures or invalid API responses raise `RuntimeError`.
+The table lists all 23 named functions, including private helpers and template
+interfaces. Current application functions raise `ValueError` for invalid inputs
+and `RuntimeError` for request or response failures. Template interfaces retain
+their documented failure returns where specified below.
 
 | Module | Function | Parameters | Returns | Purpose |
 |---|---|---|---|---|
@@ -71,12 +73,19 @@ no value is returned on successful completion. Invalid inputs raise
 | `app.py` | `main` | None | `None` | Render shared inputs, both conversion sections and the footer. |
 | `app.py` | `show_conversion_section` | `section, source, target, amount` | `None` | Handle one conversion section, preserve its result and display the latest-rate chart when applicable. |
 | `api.py` | `get_json` | `url, params=None` | Decoded JSON | Perform an HTTP GET with a ten-second timeout and translate request/JSON errors. |
+| `api.py` | `get_url` | `url` | `(status_code, response_text)` | Return the HTTP response status and raw text; transport exceptions propagate. |
 | `frankfurter.py` | `_currency_code` | `code` | `str` | Validate and normalise a three-letter currency code. |
 | `frankfurter.py` | `get_currencies` | None | Currency code/name dictionary | Retrieve and validate the supported currency list. |
 | `frankfurter.py` | `_get_rate` | `endpoint, from_currency, to_currency` | Dictionary: `date, base, target, rate` | Retrieve and validate a single exchange-rate quote. |
 | `frankfurter.py` | `get_latest_rate` | `from_currency, to_currency` | Quote dictionary | Retrieve the latest available quote. |
-| `frankfurter.py` | `get_historical_rate` | `from_currency, to_currency, historical_date` | Quote dictionary | Validate a `YYYY-MM-DD` date and retrieve its available quote. |
+| `frankfurter.py` | `get_historical_rate` | `from_currency, to_currency, historical_date`; template: `from_currency, to_currency, from_date, amount` | Quote dictionary without `amount`; rate or `None` on retrieval failure with `amount` | Validate a date and retrieve its quote; accept `from_date` as a keyword alias. |
 | `frankfurter.py` | `get_three_year_rates` | `from_currency, to_currency` | Sorted list of `Date`/`Rate` dictionaries | Retrieve and validate rates within the last three calendar years; `Date` values are Python dates. |
+| `frankfurter.py` | `get_currencies_list` | None | Code list or `None` | Provide the template currency-list interface. |
+| `frankfurter.py` | `get_latest_rates` | `from_currency, to_currency, amount` | `(date, rate)` or `(None, None)` | Retrieve a unit rate; the template amount parameter does not scale it. |
+| `frankfurter.py` | `get_rate_trend` | `from_currency, to_currency, years` | Date-string/rate dictionary | Retain the last returned record per calendar quarter within the requested years. |
+| `currency.py` | `round_rate` | `rate` | Rounded number | Round to four decimal places. |
+| `currency.py` | `reverse_rate` | `rate` | Reciprocal or zero | Return zero for zero; otherwise round the reciprocal to four decimal places. |
+| `currency.py` | `format_output` | `date, from_currency, to_currency, rate, amount` | `str` | Reuse current calculations and assignment result formatting. |
 | `currency.py` | `_validate_number` | `value, name` | `None` | Reject non-numeric, boolean and non-finite values. |
 | `currency.py` | `_validate_rate` | `exchange_rate` | `None` | Require a positive, finite numeric rate. |
 | `currency.py` | `validate_amount` | `amount` | `None` | Require a non-negative, finite numeric amount. |

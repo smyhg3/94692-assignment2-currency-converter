@@ -7,6 +7,7 @@ from api import get_json
 
 
 BASE_URL = "https://api.frankfurter.dev/v1"
+_MISSING = object()
 
 
 def _currency_code(code):
@@ -68,8 +69,23 @@ def get_latest_rate(from_currency, to_currency):
     return _get_rate("latest", from_currency, to_currency)
 
 
-def get_historical_rate(from_currency, to_currency, historical_date):
+def get_historical_rate(
+    from_currency, to_currency, historical_date=_MISSING, amount=_MISSING,
+    *, from_date=_MISSING,
+):
     """Retrieve a rate for a YYYY-MM-DD date, possibly an earlier workday."""
+    if from_date is not _MISSING:
+        if historical_date is not _MISSING:
+            raise TypeError("Specify only one historical date.")
+        historical_date = from_date
+    if historical_date is _MISSING:
+        raise TypeError("Missing required historical_date argument.")
+    # Supplying amount selects the template's scalar return, even when it is zero.
+    if amount is not _MISSING:
+        try:
+            return get_historical_rate(from_currency, to_currency, historical_date)["rate"]
+        except RuntimeError:
+            return None
     if not isinstance(historical_date, str):
         raise ValueError("Historical date must be a YYYY-MM-DD string.")
     try:
@@ -122,3 +138,46 @@ def get_three_year_rates(from_currency, to_currency):
     except (KeyError, TypeError, ValueError, OverflowError) as error:
         raise RuntimeError("Three-year trend data is unavailable or invalid. Please try again later.") from error
     return sorted(records, key=lambda record: record["Date"])
+
+
+def get_currencies_list():
+    """Return currency codes, or None when retrieval fails."""
+    try:
+        return list(get_currencies())
+    except RuntimeError:
+        return None
+
+
+def get_latest_rates(from_currency, to_currency, amount):
+    """Return (date, unit rate), or (None, None) when retrieval fails."""
+    # The template accepts amount but does not specify scaling the returned rate.
+    try:
+        quote = get_latest_rate(from_currency, to_currency)
+        return quote["date"], quote["rate"]
+    except RuntimeError:
+        return None, None
+
+
+def get_rate_trend(from_currency, to_currency, years):
+    """Return one published rate per calendar quarter over the requested years."""
+    base = _currency_code(from_currency)
+    target = _currency_code(to_currency)
+    if base == target:
+        raise ValueError("Choose two different currencies.")
+    end_date = date.today()
+    try:
+        start_date = end_date.replace(year=end_date.year - years)
+    except ValueError:
+        start_date = end_date.replace(year=end_date.year - years, day=28)
+    data = get_json(
+        f"{BASE_URL}/{start_date.isoformat()}..{end_date.isoformat()}",
+        params={"base": base, "symbols": target},
+    )
+    quarters = {}
+    for date_text, rates in sorted(data["rates"].items()):
+        published_date = date.fromisoformat(date_text)
+        if start_date <= published_date <= end_date:
+            quarter = (published_date.year, (published_date.month - 1) // 3)
+            # Keep the last returned record in each quarter; do not search for dates.
+            quarters[quarter] = (date_text, rates[target])
+    return dict(quarters.values())
