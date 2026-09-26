@@ -1,191 +1,194 @@
-# Currency Converter — Stage 4
+# Currency Converter
 
 **Student Name:** Hongyi Guo  
 **Student ID:** 26295358  
-**Course:** UTS 94692 Data Science Practice  
-**Assignment:** Assignment 2
+**Course:** 94692 
+**Assignment:** Assignment 2 — Building Currency Converter in Python
 
-Streamlit web app for UTS 94692 Data Science Practice Assignment 2.
+**Table of Contents**
 
-Retrieves exchange rates from the open-source Frankfurter API and performs
-currency conversion calculations, with latest and historical rate options.
+1. [Overview](#overview)
+2. [Setup and Usage](#setup-and-usage)
+3. [Architecture](#architecture)
+4. [Function Reference](#function-reference)
+5. [Key Workflows](#key-workflows)
+6. [Tests](#tests)
+7. [Development and Version Control](#development-and-version-control)
+8. [API Reference](#api-reference)
 
-## Development Iterations
+## Overview
 
-This project was developed incrementally across four stages, with each stage focusing on a specific part of the assignment.
+A Python Streamlit application that uses the Frankfurter API for latest and
+historical currency conversion. It displays converted amounts, inverse rates
+and a fixed three-year exchange-rate trend below the latest result.
 
-### Stage 1 — Backend foundation
+## Setup and Usage
 
-The first stage focused on separating the core backend responsibilities before building the user interface.
-
-- Added generic HTTP request handling in `api.py`.
-- Implemented Frankfurter API integration in `frankfurter.py`.
-- Added currency conversion and inverse-rate calculations in `currency.py`.
-- Established the initial project structure and Git/GitHub workflow.
-
-### Stage 2 — Streamlit interface and core conversion workflow
-
-The second stage connected the backend to a working Streamlit application.
-
-- Added amount, source currency and target currency inputs.
-- Implemented latest exchange-rate conversion.
-- Implemented historical exchange-rate lookup by date.
-- Added separate read-only result boxes for latest and historical conversions.
-- Matched the required assignment result wording through `format_conversion_result(...)`.
-
-### Stage 3 — Validation, reliability and testing
-
-The third stage focused on making the application more robust rather than adding major new features.
-
-- Added input validation for amounts, currency selections and dates.
-- Improved API/network error handling and user-facing messages.
-- Added protection against invalid, missing or non-finite rate data.
-- Added offline regression tests for backend logic and Streamlit behaviour.
-- Verified historical-date fallback behaviour and independent latest/historical results.
-
-### Stage 4 — Assignment alignment, visualisation and final refinement
-
-The final stage focused on aligning the implementation more closely with the assignment example and improving code quality.
-
-- Reorganised responsibilities so result formatting is handled by `currency.py`.
-- Added the required three-year exchange-rate trend chart below the latest conversion result.
-- Refined the Streamlit layout while keeping the assignment structure clear.
-- Simplified code and improved comments/docstrings without changing observable behaviour.
-- Cleaned submission files, updated documentation and prepared the final release.
-
-This staged workflow was tracked through Git commits on the `development` branch and then integrated into `main` through pull requests.
-
-## Architecture
-
-- `api.py`: generic JSON GET requests using `requests`, with a 10-second
-  timeout and clear `RuntimeError` exceptions for HTTP/network and JSON errors.
-
-- `frankfurter.py`: currency list, latest rate and historical rate endpoints.
-  Both rate functions return `date`, `base`, `target` and `rate` in a dictionary.
-  `get_three_year_rates(from_currency, to_currency)` retrieves and validates
-  time-series rates from three calendar years ago through today, returning
-  sorted `Date`/`Rate` records. February 29 maps to February 28 when necessary.
-
-- `currency.py`: currency calculations and final result text formatting.
-  `convert_amount(amount, exchange_rate)` and
-  `inverse_rate(exchange_rate)`, with finite-number and range validation.
-  `validate_amount(amount)` also checks inputs before the UI requests a rate.
-  `format_conversion_result(rate_date, from_currency, to_currency, rate, amount,
-  converted_amount, inverse_rate)` returns the assignment's English result text
-  using the supplied values, without recalculating or making API requests.
-
-- `app.py`: Streamlit inputs, API currency-list caching, conversion results
-  and user-facing error messages. Backend modules remain independent of Streamlit.
-
-## Setup and run
-
-Use Python 3.10 or later. Install the external dependencies:
+Use Python 3.10 or later. Install the dependencies:
 
 ```sh
 python -m pip install requests streamlit
 ```
 
-From this directory, start the web app:
+From the project directory, start the application:
 
 ```sh
 python -m streamlit run app.py
 ```
 
-Choose source and target currencies and enter a non-negative amount.
+Choose two different currencies and enter a non-negative amount. Click
+**Get latest conversion rate**, or select a historical date and click
+**Get historical conversion rate**. Zero is allowed; future dates are rejected.
+An internet connection is required.
 
-Click **Get latest conversion rate** for the latest quote, or select a historical
-date and click **Get historical conversion rate**.
-
-Each section has its own read-only result box. Results remain visible until that
-section is requested again; their text records the inputs used. A failed request
-clears only its own result.
+Each section has a separate read-only result box. Results retain the inputs
+used until that section is requested again; a failed conversion clears only
+its own result. Amounts display two decimal places and rates six significant
+digits. Calculations use the unrounded values.
 
 After a successful latest conversion, **Rate Trend Over the Last 3 years**
-appears directly below its result box. The line chart plots Date against Rate
-for the selected currency pair, using published rates within the last three
-calendar years; non-working days are not fabricated. The range is fixed.
-Changing currencies hides the old chart until you click the latest button again.
-Unavailable trend data shows a warning without removing the conversion result.
-The historical section does not display a trend chart.
+appears below its result box, with Date on the x-axis and Rate on the y-axis.
+Changing currencies hides the old chart until the latest button is clicked
+again. Unavailable trend data produces a warning without removing the
+conversion result. The historical section has no chart.
 
-Currency choices come from Frankfurter and are cached for one hour.
+## Architecture
 
-Results show the actual rate date, exchange rate, converted amount and inverse
-rate. Amounts display two decimal places; rates display six significant digits.
+- `app.py`: Streamlit inputs, interaction, backend orchestration, result display and chart rendering.
+- `api.py`: generic HTTP GET requests and request/JSON error handling.
+- `frankfurter.py`: Frankfurter endpoints, response parsing and data validation.
+- `currency.py`: amount validation, currency calculations and final result formatting.
+- `README.md`: project documentation, usage instructions and implementation reference.
 
-Identical currencies, invalid inputs, unavailable data and API/network failures
-produce error messages. An internet connection is required.
+## Function Reference
 
-Zero is allowed and converts to zero. Negative or non-finite amounts are rejected.
+The table lists all 23 named functions, including private helpers and template
+interfaces. Current application functions raise `ValueError` for invalid inputs
+and `RuntimeError` for request or response failures. Template interfaces retain
+their documented failure returns where specified below.
 
-Connection failures, timeouts, HTTP errors and unreadable responses have separate
-messages. Historical results may use an earlier working day, but a returned date
-later than the requested date is rejected.
+| Module | Function | Parameters | Returns | Purpose |
+|---|---|---|---|---|
+| `app.py` | `load_currencies` | None | Currency code/name dictionary | Load and cache supported currencies for one hour. |
+| `app.py` | `main` | None | `None` | Render shared inputs, both conversion sections and the footer. |
+| `app.py` | `show_conversion_section` | `section, source, target, amount` | `None` | Handle one conversion section, preserve its result and display the latest-rate chart when applicable. |
+| `api.py` | `get_json` | `url, params=None` | Decoded JSON | Perform an HTTP GET with a ten-second timeout and translate request/JSON errors. |
+| `api.py` | `get_url` | `url` | `(status_code, response_text)` | Return the HTTP response status and raw text; transport exceptions propagate. |
+| `frankfurter.py` | `_currency_code` | `code` | `str` | Validate and normalise a three-letter currency code. |
+| `frankfurter.py` | `get_currencies` | None | Currency code/name dictionary | Retrieve and validate the supported currency list. |
+| `frankfurter.py` | `_get_rate` | `endpoint, from_currency, to_currency` | Dictionary: `date, base, target, rate` | Retrieve and validate a single exchange-rate quote. |
+| `frankfurter.py` | `get_latest_rate` | `from_currency, to_currency` | Quote dictionary | Retrieve the latest available quote. |
+| `frankfurter.py` | `get_historical_rate` | `from_currency, to_currency, historical_date`; template: `from_currency, to_currency, from_date, amount` | Quote dictionary without `amount`; rate or `None` on retrieval failure with `amount` | Validate a date and retrieve its quote; accept `from_date` as a keyword alias. |
+| `frankfurter.py` | `get_three_year_rates` | `from_currency, to_currency` | Sorted list of `Date`/`Rate` dictionaries | Retrieve and validate rates within the last three calendar years; `Date` values are Python dates. |
+| `frankfurter.py` | `get_currencies_list` | None | Code list or `None` | Provide the template currency-list interface. |
+| `frankfurter.py` | `get_latest_rates` | `from_currency, to_currency, amount` | `(date, rate)` or `(None, None)` | Retrieve a unit rate; the template amount parameter does not scale it. |
+| `frankfurter.py` | `get_rate_trend` | `from_currency, to_currency, years` | Date-string/rate dictionary | Retain the last returned record per calendar quarter within the requested years. |
+| `currency.py` | `round_rate` | `rate` | Rounded number | Round to four decimal places. |
+| `currency.py` | `reverse_rate` | `rate` | Reciprocal or zero | Return zero for zero; otherwise round the reciprocal to four decimal places. |
+| `currency.py` | `format_output` | `date, from_currency, to_currency, rate, amount` | `str` | Reuse current calculations and assignment result formatting. |
+| `currency.py` | `_validate_number` | `value, name` | `None` | Reject non-numeric, boolean and non-finite values. |
+| `currency.py` | `_validate_rate` | `exchange_rate` | `None` | Require a positive, finite numeric rate. |
+| `currency.py` | `validate_amount` | `amount` | `None` | Require a non-negative, finite numeric amount. |
+| `currency.py` | `convert_amount` | `amount, exchange_rate` | Numeric converted amount | Multiply the amount by the rate and validate the result. |
+| `currency.py` | `inverse_rate` | `exchange_rate` | `float` | Calculate and validate the reciprocal rate. |
+| `currency.py` | `format_conversion_result` | `rate_date, from_currency, to_currency, rate, amount, converted_amount, inverse_rate` | `str` | Format supplied values using the required wording without recalculation. |
+
+Three anonymous lambdas support these functions: two in `app.py` format
+currency option labels, and one in `frankfurter.py` selects the date as the
+sorting key. They are callbacks rather than primary API functions.
+
+## Key Workflows
+
+### Historical Date Handling
+
+Historical date fallback is determined by the data returned by the Frankfurter
+API. The application does not manually search backwards through dates.
+
+```text
+WHEN the historical conversion button is clicked:
+    Clear only the historical result
+    Validate different currencies, a selected non-future date, and amount
+    Convert the selected date to YYYY-MM-DD
+
+    Backend validates the date string and normalises the currency codes
+    Request the historical endpoint
+    Validate the returned base currency, target rate and publication date
+    Require a positive finite rate and a date no later than the request
+
+    Calculate converted amount and inverse rate
+    Format and save the historical result with both dates
+
+ON input or request failure:
+    Display an error; keep the latest result unchanged
+
+WHEN displaying a saved historical result:
+    Display its actual exchange-rate date
+    If the returned date differs from the requested date:
+        Display a fallback notice
+    Display the read-only result text
+```
+
+### Three-Year Rate Trend
+
+The range uses calendar years rather than a fixed number of days. Only returned
+published rates within the range are plotted; missing days are not filled in.
+
+```text
+AFTER a successful latest conversion has been saved:
+    Normalise currency codes and require different currencies
+    Set end date to today
+    Set start date to the same month/day three calendar years earlier
+    If that date is invalid because of February 29:
+        Use February 28 of that year
+
+    Request the date-range endpoint for the selected currency pair
+    Validate the response base currency and rates dictionary
+    For each returned record:
+        Validate its date and positive finite target rate
+        Reject dates later than today
+        Keep the record only if its date is on or after the start date
+    Reject an empty result
+    Sort records by date and store them with the latest result
+
+IF trend retrieval or validation fails:
+    Store an empty trend; preserve the successful conversion
+
+WHEN displaying a saved latest result:
+    Show the trend heading below the result box
+    If selected currencies differ from the stored pair:
+        Ask the user to request the latest conversion again
+    Otherwise, if no trend data is available:
+        Show a warning
+    Otherwise:
+        Draw Date against Rate
+```
 
 ## Tests
 
-Run the offline regression tests from this directory after installing dependencies:
+After installing dependencies, run the offline regression tests from the
+project directory:
 
 ```sh
 python -m unittest discover -s tests -v
 ```
 
-These tests use simulated HTTP responses and Streamlit's AppTest to cover input
-validation, calculations, historical date fallback, response validation and
-network errors. They do not require internet access or verify live API availability.
+The tests use simulated HTTP responses and Streamlit's AppTest to cover input
+validation, calculations, result formatting, independent result boxes,
+historical date handling, trend data and chart placement, and API/network
+errors. They require no internet access and do not verify live API availability.
 
-The `tests/` directory is maintained in the GitHub repository for development
-and regression testing, but is not required in the final Canvas submission ZIP.
+The `tests/` directory is retained in the GitHub repository for development
+and regression testing, but is not included in the Canvas submission ZIP.
 
-## Backend example
+## Development and Version Control
 
-From this directory, run `python` and enter:
+The project was developed incrementally using Git and GitHub. Commits record
+backend development, Streamlit integration, validation and testing, the
+three-year trend chart, and documentation refinements.
 
-```python
-from frankfurter import get_currencies, get_latest_rate, get_historical_rate
-from currency import convert_amount, inverse_rate
+## API Reference
 
-currencies = get_currencies()
-
-quote = get_latest_rate("AUD", "USD")
-
-print(quote)
-print(convert_amount(100, quote["rate"]))
-print(inverse_rate(quote["rate"]))
-
-print(get_historical_rate("AUD", "USD", "2024-05-15"))
-```
-
-Amounts must be non-negative; rates must be positive.
-
-Calculations are not rounded; `format_conversion_result(...)` formats the final
-text for display in Streamlit's read-only text area.
-
-Invalid inputs raise `ValueError`; failed requests or invalid API responses raise
-`RuntimeError`.
-
-Currency codes are normalized; unsupported codes are rejected by the API.
-
-Select two different currencies. Historical dates must use `YYYY-MM-DD` and must
-not be in the future.
-
-Dates without published data may return an earlier working day's rate; always
-display the returned date. Unavailable historical data produces an error rather
-than an invented rate.
-
-## Version Control
-
-This project was developed using Git and GitHub for version control.
-
-Development was carried out incrementally on the `development` branch, with
-separate commits used to record the main stages of implementation. Stable
-changes were integrated into `main` through pull requests, allowing the project
-history to show the progression from backend development to UI integration,
-testing, visualisation and final refinement.
-
-## API
-
-The project uses the [Frankfurter v1 API](https://frankfurter.dev/v1/) to match
-the assignment's currency, latest and historical endpoints.
-
-Although superseded by v2, v1 remains available. No API key is required.
+The application uses the [Frankfurter v1 API](https://frankfurter.dev/v1/)
+for currencies, latest rates, historical rates and date-range time series.
+No API key is required. HTTP requests use a ten-second timeout; connection,
+timeout, HTTP and unreadable JSON failures produce user-facing error messages.
